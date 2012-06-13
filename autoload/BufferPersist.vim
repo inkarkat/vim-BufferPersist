@@ -9,6 +9,9 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"	003	13-Jun-2012	Replace a:range argument with a more flexible
+"				options dictionary, as this and other potential
+"				new options are not mandatory.
 "	002	12-Jun-2012	Split off BufferPersist functionality from
 "				the original MessageRecall plugin.
 "	001	09-Jun-2012	file creation
@@ -57,14 +60,17 @@ function! BufferPersist#OnLeave( BufferStoreFuncref )
 endfunction
 
 let s:pendingBufferFilespecs = {}
-function! BufferPersist#Setup( BufferStoreFuncref, range )
+function! BufferPersist#Setup( BufferStoreFuncref, ... )
+    let l:options = (a:0 ? a:1 : {})
+    let l:range = get(l:options, 'range', '')
+
     let l:pendingBufferFilespec = tempname()
     let s:pendingBufferFilespecs[l:pendingBufferFilespec] = 1
 
     augroup BufferPersist
 	autocmd! * <buffer>
-	execute printf('autocmd BufLeave <buffer> call BufferPersist#RecordBuffer(%s, %s)', string(a:range), string(l:pendingBufferFilespec))
-	execute printf('autocmd BufUnload <buffer> call BufferPersist#OnUnload(%s, %s)', string(a:range), string(l:pendingBufferFilespec))
+	execute printf('autocmd BufLeave <buffer> call BufferPersist#RecordBuffer(%s, %s)', string(l:range), string(l:pendingBufferFilespec))
+	execute printf('autocmd BufUnload <buffer> call BufferPersist#OnUnload(%s, %s)', string(l:range), string(l:pendingBufferFilespec))
 	execute printf('autocmd BufDelete <buffer> call BufferPersist#PersistBuffer(%s, %s)', string(l:pendingBufferFilespec), string(a:BufferStoreFuncref))
 	execute printf('autocmd VimLeavePre * call BufferPersist#OnLeave(%s)', string(a:BufferStoreFuncref))
     augroup END
