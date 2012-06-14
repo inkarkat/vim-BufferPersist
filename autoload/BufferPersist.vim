@@ -2,6 +2,7 @@
 "
 " DEPENDENCIES:
 "   - escapings.vim autoload script
+"   - ingointegration.vim autoload script
 "
 " Copyright: (C) 2012 Ingo Karkat
 "   The VIM LICENSE applies to this script; see ':help copyright'.
@@ -9,6 +10,7 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"	004	14-Jun-2012	Do not persist empty buffer contents.
 "	003	13-Jun-2012	Replace a:range argument with a more flexible
 "				options dictionary, as this and other potential
 "				new options are not mandatory.
@@ -16,17 +18,39 @@
 "				the original MessageRecall plugin.
 "	001	09-Jun-2012	file creation
 
+function! s:ErrorMsg( text )
+    echohl ErrorMsg
+    let v:errmsg = a:text
+    echomsg v:errmsg
+    echohl None
+endfunction
+
+function! s:IsBufferEmpty( range )
+    if empty(a:range) || a:range ==# '%'
+	return (line('$') == 1 && empty(getline(1)))
+    else
+	return (ingointegration#GetRange(a:range) =~# '^\n*$')
+    endif
+endfunction
+
 function! BufferPersist#RecordBuffer( range, pendingBufferFilespec )
-    try
-	execute 'silent keepalt' a:range . 'write!' escapings#fnameescape(a:pendingBufferFilespec)
-    catch /^Vim\%((\a\+)\)\=:E/
-	" v:exception contains what is normally in v:errmsg, but with extra
-	" exception source info prepended, which we cut away.
-	let v:errmsg = substitute(v:exception, '^Vim\%((\a\+)\)\=:', '', '')
-	echohl ErrorMsg
-	echomsg v:errmsg
-	echohl None
-    endtry
+    if s:IsBufferEmpty(a:range)
+	" Do not record effectively empty buffer contents; this would just
+	" clutter the store and provides no value on recalls.
+	if filereadable(a:pendingBufferFilespec)
+	    if delete(a:pendingBufferFilespec) != 0
+		call s:ErrorMsg('BufferPersist: Failed to delete temporary recorded buffer')
+	    endif
+	endif
+    else
+	try
+	    execute 'silent keepalt' a:range . 'write!' escapings#fnameescape(a:pendingBufferFilespec)
+	catch /^Vim\%((\a\+)\)\=:E/
+	    " v:exception contains what is normally in v:errmsg, but with extra
+	    " exception source info prepended, which we cut away.
+	    call s:ErrorMsg(substitute(v:exception, '^Vim\%((\a\+)\)\=:', '', ''))
+	endtry
+    endif
 endfunction
 
 function! BufferPersist#OnUnload( range, pendingBufferFilespec )
@@ -41,15 +65,16 @@ function! BufferPersist#OnUnload( range, pendingBufferFilespec )
 endfunction
 
 function! BufferPersist#PersistBuffer( pendingBufferFilespec, BufferStoreFuncref )
+    if ! filereadable(a:pendingBufferFilespec)
+	return
+    endif
+
     let l:bufferFilespec = call(a:BufferStoreFuncref, [])
 "****D echomsg '**** rename' string(a:pendingBufferFilespec) string(l:bufferFilespec)
     if rename(a:pendingBufferFilespec, l:bufferFilespec) == 0
 	unlet! s:pendingBufferFilespecs[a:pendingBufferFilespec]
     else
-	let v:errmsg = 'BufferPersist: Failed to persist buffer to ' . l:bufferFilespec
-	echohl ErrorMsg
-	echomsg v:errmsg
-	echohl None
+	call s:ErrorMsg('BufferPersist: Failed to persist buffer to ' . l:bufferFilespec)
     endif
 endfunction
 
