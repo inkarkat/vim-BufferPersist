@@ -86,6 +86,27 @@ endfunction
 
 let s:pendingBufferFilespecs = {}
 function! BufferPersist#Setup( BufferStoreFuncref, ... )
+"******************************************************************************
+"* PURPOSE:
+"   Set up autocmds for the current buffer to automatically persist the buffer
+"   contents when Vim is done editing the buffer (both when is was persisted to
+"   a file and also when it was discarded, e.g. via :bdelete!)
+"* ASSUMPTIONS / PRECONDITIONS:
+"   None.
+"* EFFECTS / POSTCONDITIONS:
+"   Writes buffer contents to the file returned by a:BufferStoreFuncref.
+"* INPUTS:
+"   a:BufferStoreFuncref    A Funcref that takes no arguments and returns the
+"			    filespec where the buffer contents should be
+"			    persisted to.
+"   a:options               Optional Dictionary with configuration:
+"   a:options.range         A |:range| expression limiting the lines of the
+"			    buffer that should be persisted. This can be used to
+"			    filter away some content. Default is "", which
+"			    includes the entire buffer.
+"* RETURN VALUES:
+"   None.
+"******************************************************************************
     let l:options = (a:0 ? a:1 : {})
     let l:range = get(l:options, 'range', '')
 
