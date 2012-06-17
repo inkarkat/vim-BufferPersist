@@ -89,8 +89,8 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
 "******************************************************************************
 "* PURPOSE:
 "   Set up autocmds for the current buffer to automatically persist the buffer
-"   contents when Vim is done editing the buffer (both when is was persisted to
-"   a file and also when it was discarded, e.g. via :bdelete!)
+"   contents when Vim is done editing the buffer (both when is was saved to a
+"   file and also when it was discarded, e.g. via :bdelete!)
 "* ASSUMPTIONS / PRECONDITIONS:
 "   None.
 "* EFFECTS / POSTCONDITIONS:
