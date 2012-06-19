@@ -10,6 +10,9 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.00.006	20-Jun-2012	BUG: s:IsBufferEmpty() can throw E486, move the
+"				code into the try block so that only the error
+"				is printed.
 "   1.00.005	18-Jun-2012	Pass bufNr to a:BufferStoreFuncref; on
 "				VimLeavePre, the current buffer number does not
 "				correspond to the persisted buffer, and the
@@ -38,23 +41,23 @@ function! s:IsBufferEmpty( range )
 endfunction
 
 function! BufferPersist#RecordBuffer( range, pendingBufferFilespec )
-    if s:IsBufferEmpty(a:range)
-	" Do not record effectively empty buffer contents; this would just
-	" clutter the store and provides no value on recalls.
-	if filereadable(a:pendingBufferFilespec)
-	    if delete(a:pendingBufferFilespec) != 0
-		call s:ErrorMsg('BufferPersist: Failed to delete temporary recorded buffer')
+    try
+	if s:IsBufferEmpty(a:range)
+	    " Do not record effectively empty buffer contents; this would just
+	    " clutter the store and provides no value on recalls.
+	    if filereadable(a:pendingBufferFilespec)
+		if delete(a:pendingBufferFilespec) != 0
+		    call s:ErrorMsg('BufferPersist: Failed to delete temporary recorded buffer')
+		endif
 	    endif
-	endif
-    else
-	try
+	else
 	    execute 'silent keepalt' a:range . 'write!' escapings#fnameescape(a:pendingBufferFilespec)
-	catch /^Vim\%((\a\+)\)\=:E/
-	    " v:exception contains what is normally in v:errmsg, but with extra
-	    " exception source info prepended, which we cut away.
-	    call s:ErrorMsg(substitute(v:exception, '^Vim\%((\a\+)\)\=:', '', ''))
-	endtry
-    endif
+	endif
+    catch /^Vim\%((\a\+)\)\=:E/
+	" v:exception contains what is normally in v:errmsg, but with extra
+	" exception source info prepended, which we cut away.
+	call s:ErrorMsg('BufferPersist: Failed to record buffer: ' . substitute(v:exception, '^Vim\%((\a\+)\)\=:', '', ''))
+    endtry
 endfunction
 
 function! BufferPersist#OnUnload( range, pendingBufferFilespec )
@@ -107,7 +110,9 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
 "   a:options.range         A |:range| expression limiting the lines of the
 "			    buffer that should be persisted. This can be used to
 "			    filter away some content. Default is "", which
-"			    includes the entire buffer.
+"			    includes the entire buffer. When the range doesn't
+"			    match, an error message is printed and the buffer
+"			    contents are not persisted.
 "* RETURN VALUES:
 "   None.
 "******************************************************************************
