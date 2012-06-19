@@ -10,6 +10,10 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.00.005	18-Jun-2012	Pass bufNr to a:BufferStoreFuncref; on
+"				VimLeavePre, the current buffer number does not
+"				correspond to the persisted buffer, and the
+"				Funcref may want to evaluate the buffer name.
 "	004	14-Jun-2012	Do not persist empty buffer contents.
 "	003	13-Jun-2012	Replace a:range argument with a more flexible
 "				options dictionary, as this and other potential
@@ -64,12 +68,12 @@ function! BufferPersist#OnUnload( range, pendingBufferFilespec )
     endif
 endfunction
 
-function! BufferPersist#PersistBuffer( pendingBufferFilespec, BufferStoreFuncref )
+function! BufferPersist#PersistBuffer( pendingBufferFilespec, BufferStoreFuncref, bufNr )
     if ! filereadable(a:pendingBufferFilespec)
 	return
     endif
 
-    let l:bufferFilespec = call(a:BufferStoreFuncref, [])
+    let l:bufferFilespec = call(a:BufferStoreFuncref, [a:bufNr])
 "****D echomsg '**** rename' string(a:pendingBufferFilespec) string(l:bufferFilespec)
     if rename(a:pendingBufferFilespec, l:bufferFilespec) == 0
 	unlet! s:pendingBufferFilespecs[a:pendingBufferFilespec]
@@ -79,8 +83,8 @@ function! BufferPersist#PersistBuffer( pendingBufferFilespec, BufferStoreFuncref
 endfunction
 
 function! BufferPersist#OnLeave( BufferStoreFuncref )
-    for l:filespec in keys(s:pendingBufferFilespecs)
-	call BufferPersist#PersistBuffer(l:filespec, a:BufferStoreFuncref)
+    for [l:filespec, l:bufNr] in items(s:pendingBufferFilespecs)
+	call BufferPersist#PersistBuffer(l:filespec, a:BufferStoreFuncref, l:bufNr)
     endfor
 endfunction
 
@@ -96,9 +100,9 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
 "* EFFECTS / POSTCONDITIONS:
 "   Writes buffer contents to the file returned by a:BufferStoreFuncref.
 "* INPUTS:
-"   a:BufferStoreFuncref    A Funcref that takes no arguments and returns the
-"			    filespec where the buffer contents should be
-"			    persisted to.
+"   a:BufferStoreFuncref    A Funcref that takes the buffer number as an
+"			    argument and returns the filespec where the buffer
+"			    contents should be persisted to.
 "   a:options               Optional Dictionary with configuration:
 "   a:options.range         A |:range| expression limiting the lines of the
 "			    buffer that should be persisted. This can be used to
@@ -111,13 +115,19 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
     let l:range = get(l:options, 'range', '')
 
     let l:pendingBufferFilespec = tempname()
-    let s:pendingBufferFilespecs[l:pendingBufferFilespec] = 1
+    let s:pendingBufferFilespecs[l:pendingBufferFilespec] = bufnr('')
 
     augroup BufferPersist
 	autocmd! * <buffer>
-	execute printf('autocmd BufLeave <buffer> call BufferPersist#RecordBuffer(%s, %s)', string(l:range), string(l:pendingBufferFilespec))
+	execute printf('autocmd BufLeave  <buffer> call BufferPersist#RecordBuffer(%s, %s)', string(l:range), string(l:pendingBufferFilespec))
 	execute printf('autocmd BufUnload <buffer> call BufferPersist#OnUnload(%s, %s)', string(l:range), string(l:pendingBufferFilespec))
-	execute printf('autocmd BufDelete <buffer> call BufferPersist#PersistBuffer(%s, %s)', string(l:pendingBufferFilespec), string(a:BufferStoreFuncref))
+	execute printf('autocmd BufDelete <buffer> call BufferPersist#PersistBuffer(%s, %s, %d)', string(l:pendingBufferFilespec), string(a:BufferStoreFuncref), bufnr(''))
+
+	" This should be added only once per a:BufferStoreFuncref(). However,
+	" since subsequent invocations will no-op on an empty
+	" s:pendingBufferFilespecs, this does no harm, just adds a minimal
+	" linear performance impact, and we don't expect many persisted buffers
+	" in a single Vim session, anyway.
 	execute printf('autocmd VimLeavePre * call BufferPersist#OnLeave(%s)', string(a:BufferStoreFuncref))
     augroup END
 endfunction
