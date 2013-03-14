@@ -20,9 +20,11 @@ but rather meant for building a history of file contents to allow browsing and
 recall, especially for things like commit messages, where Vim is invoked as
 the editor from an external tool.
 
-HOW IT WORKS								     *
-
 SEE ALSO								     *
+
+This plugin is used by:
+MessageRecall (vimscript #4116): Browse and re-insert previous (commit,
+				 status) messages.
 
 RELATED WORKS								     *
 
@@ -70,12 +72,15 @@ KNOWN PROBLEMS					*BufferPersist-known-problems*
 
 TODO							  *BufferPersist-todo*
 
+- Add option to skip persisting when never modified in Vim or equal to the
+  previous stored buffer persistence (which would need to be passed in).
+
 IDEAS							 *BufferPersist-ideas*
 
 ==============================================================================
 HISTORY						       *BufferPersist-history*
 
-1.00	18-Jun-2012
+1.00	25-Jun-2012
 First published version.
 
 0.01	09-Jun-2012
