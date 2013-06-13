@@ -13,6 +13,8 @@
 "   1.00.006	20-Jun-2012	BUG: s:IsBufferEmpty() can throw E486, move the
 "				code into the try block so that only the error
 "				is printed.
+"				Add a:options.whenRangeNoMatch to customize the
+"				behavior.
 "   1.00.005	18-Jun-2012	Pass bufNr to a:BufferStoreFuncref; on
 "				VimLeavePre, the current buffer number does not
 "				correspond to the persisted buffer, and the
@@ -40,9 +42,30 @@ function! s:IsBufferEmpty( range )
     endif
 endfunction
 
-function! BufferPersist#RecordBuffer( range, pendingBufferFilespec )
+function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFilespec )
+    let l:range = a:range
     try
-	if s:IsBufferEmpty(a:range)
+	let l:isBufferEmpty = s:IsBufferEmpty(l:range)
+    catch /^Vim\%((\a\+)\)\=:E/
+	if a:whenRangeNoMatch ==# 'error'
+	    call s:ErrorMsg('BufferPersist: Failed to capture buffer: ' . substitute(v:exception, '^Vim\%((\a\+)\)\=:', '', ''))
+	    return
+	elseif a:whenRangeNoMatch ==# 'ignore'
+	    " This will remove any existing a:pendingBufferFilespec below and
+	    " not persist the current buffer.
+	    let l:isBufferEmpty = 1
+	elseif a:whenRangeNoMatch ==# 'all'
+	    " Persist the entire buffer instead.
+	    let l:range = ''
+	    " Unless the entire buffer is empty, too.
+	    let l:isBufferEmpty = s:IsBufferEmpty(l:range)
+	else
+	    throw 'ASSERT: Invalid value for a:whenRangeNoMatch: ' . string(a:whenRangeNoMatch)
+	endif
+    endtry
+
+    try
+	if l:isBufferEmpty
 	    " Do not record effectively empty buffer contents; this would just
 	    " clutter the store and provides no value on recalls.
 	    if filereadable(a:pendingBufferFilespec)
@@ -51,23 +74,21 @@ function! BufferPersist#RecordBuffer( range, pendingBufferFilespec )
 		endif
 	    endif
 	else
-	    execute 'silent keepalt' a:range . 'write!' escapings#fnameescape(a:pendingBufferFilespec)
+	    execute 'silent keepalt' l:range . 'write!' escapings#fnameescape(a:pendingBufferFilespec)
 	endif
     catch /^Vim\%((\a\+)\)\=:E/
-	" v:exception contains what is normally in v:errmsg, but with extra
-	" exception source info prepended, which we cut away.
 	call s:ErrorMsg('BufferPersist: Failed to record buffer: ' . substitute(v:exception, '^Vim\%((\a\+)\)\=:', '', ''))
     endtry
 endfunction
 
-function! BufferPersist#OnUnload( range, pendingBufferFilespec )
+function! BufferPersist#OnUnload( range, whenRangeNoMatch, pendingBufferFilespec )
     " The BufLeave event isn't invoked when :quitting Vim from the current
     " buffer. We catch this from the BufUnload event. Since it is not allowed to
     " switch buffer in there, we cannot in general use this for persisting. But
     " in this special case, we only need to persist when inside the
     " to-be-unloaded buffer.
     if expand('<abuf>') == bufnr('')
-	call BufferPersist#RecordBuffer(a:range, a:pendingBufferFilespec)
+	call BufferPersist#RecordBuffer(a:range, a:whenRangeNoMatch, a:pendingBufferFilespec)
     endif
 endfunction
 
@@ -110,22 +131,29 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
 "   a:options.range         A |:range| expression limiting the lines of the
 "			    buffer that should be persisted. This can be used to
 "			    filter away some content. Default is "", which
-"			    includes the entire buffer. When the range doesn't
-"			    match, an error message is printed and the buffer
-"			    contents are not persisted.
+"			    includes the entire buffer.
+"   a:options.whenRangeNoMatch  Specifies the behavior when a:options.range
+"				doesn't match. One of:
+"				"error": an error message is printed and the
+"				buffer contents are not persisted
+"				"ignore": the buffer contents silently are not
+"				persisted
+"				"all": the entire buffer is persisted instead
+"				Default is "error"
 "* RETURN VALUES:
 "   None.
 "******************************************************************************
     let l:options = (a:0 ? a:1 : {})
     let l:range = get(l:options, 'range', '')
+    let l:whenRangeNoMatch = get(l:options, 'whenRangeNoMatch', 'error')
 
     let l:pendingBufferFilespec = tempname()
     let s:pendingBufferFilespecs[l:pendingBufferFilespec] = bufnr('')
 
     augroup BufferPersist
 	autocmd! * <buffer>
-	execute printf('autocmd BufLeave  <buffer> call BufferPersist#RecordBuffer(%s, %s)', string(l:range), string(l:pendingBufferFilespec))
-	execute printf('autocmd BufUnload <buffer> call BufferPersist#OnUnload(%s, %s)', string(l:range), string(l:pendingBufferFilespec))
+	execute printf('autocmd BufLeave  <buffer> call BufferPersist#RecordBuffer(%s, %s, %s)', string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec))
+	execute printf('autocmd BufUnload <buffer> call BufferPersist#OnUnload(%s, %s, %s)', string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec))
 	execute printf('autocmd BufDelete <buffer> call BufferPersist#PersistBuffer(%s, %s, %d)', string(l:pendingBufferFilespec), string(a:BufferStoreFuncref), bufnr(''))
 
 	" This should be added only once per a:BufferStoreFuncref(). However,
