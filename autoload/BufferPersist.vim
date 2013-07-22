@@ -4,12 +4,14 @@
 "   - escapings.vim autoload script
 "   - ingointegration.vim autoload script
 "
-" Copyright: (C) 2012 Ingo Karkat
+" Copyright: (C) 2012-2013 Ingo Karkat
 "   The VIM LICENSE applies to this script; see ':help copyright'.
 "
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.01.007	14-Jun-2013	Minor: Make substitute() robust against
+"				'ignorecase'.
 "   1.00.006	20-Jun-2012	BUG: s:IsBufferEmpty() can throw E486, move the
 "				code into the try block so that only the error
 "				is printed.
@@ -48,7 +50,7 @@ function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFile
 	let l:isBufferEmpty = s:IsBufferEmpty(l:range)
     catch /^Vim\%((\a\+)\)\=:E/
 	if a:whenRangeNoMatch ==# 'error'
-	    call s:ErrorMsg('BufferPersist: Failed to capture buffer: ' . substitute(v:exception, '^Vim\%((\a\+)\)\=:', '', ''))
+	    call s:ErrorMsg('BufferPersist: Failed to capture buffer: ' . substitute(v:exception, '\C^Vim\%((\a\+)\)\=:', '', ''))
 	    return
 	elseif a:whenRangeNoMatch ==# 'ignore'
 	    " This will remove any existing a:pendingBufferFilespec below and
@@ -77,7 +79,7 @@ function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFile
 	    execute 'silent keepalt' l:range . 'write!' escapings#fnameescape(a:pendingBufferFilespec)
 	endif
     catch /^Vim\%((\a\+)\)\=:E/
-	call s:ErrorMsg('BufferPersist: Failed to record buffer: ' . substitute(v:exception, '^Vim\%((\a\+)\)\=:', '', ''))
+	call s:ErrorMsg('BufferPersist: Failed to record buffer: ' . substitute(v:exception, '^\CVim\%((\a\+)\)\=:', '', ''))
     endtry
 endfunction
 
