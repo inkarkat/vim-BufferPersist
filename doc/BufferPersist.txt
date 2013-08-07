@@ -54,16 +54,18 @@ directory, using the text file's filename prefixed with "preview-": >
 INSTALLATION					  *BufferPersist-installation*
 
 This script is packaged as a |vimball|. If you have the "gunzip" decompressor
-in your PATH, simply edit the *.vba.gz package in Vim; otherwise, decompress
+in your PATH, simply edit the *.vmb.gz package in Vim; otherwise, decompress
 the archive first, e.g. using WinZip. Inside Vim, install by sourcing the
 vimball or via the |:UseVimball| command. >
-    vim BufferPersist.vba.gz
+    vim BufferPersist*.vmb.gz
     :so %
 To uninstall, use the |:RmVimball| command.
 
 DEPENDENCIES					  *BufferPersist-dependencies*
 
 - Requires Vim 7.0 or higher.
+- Requires the |ingo-library.vim| plugin (vimscript #4433), version 1.011 or
+  higher.
 
 ==============================================================================
 LIMITATIONS					   *BufferPersist-limitations*
@@ -82,6 +84,8 @@ HISTORY						       *BufferPersist-history*
 
 1.01	RELEASEME
 - Minor: Make substitute() robust against 'ignorecase'.
+- Add dependency to ingo-library (vimscript #4433). *** You need to separately
+  install ingo-library (vimscript #4433) version 1.011 (or higher)! ***
 
 1.00	25-Jun-2012
 First published version.
