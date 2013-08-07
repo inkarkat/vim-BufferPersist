@@ -2,7 +2,7 @@
 "
 " DEPENDENCIES:
 "   - escapings.vim autoload script
-"   - ingointegration.vim autoload script
+"   - ingo/range.vim autoload script
 "
 " Copyright: (C) 2012-2013 Ingo Karkat
 "   The VIM LICENSE applies to this script; see ':help copyright'.
@@ -10,6 +10,8 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.01.008	23-Jul-2013	Move ingointegration#GetRange() to
+"				ingo#range#Get().
 "   1.01.007	14-Jun-2013	Minor: Make substitute() robust against
 "				'ignorecase'.
 "   1.00.006	20-Jun-2012	BUG: s:IsBufferEmpty() can throw E486, move the
@@ -40,7 +42,7 @@ function! s:IsBufferEmpty( range )
     if empty(a:range) || a:range ==# '%'
 	return (line('$') == 1 && empty(getline(1)))
     else
-	return (ingointegration#GetRange(a:range) =~# '^\n*$')
+	return (ingo#range#Get(a:range) =~# '^\n*$')
     endif
 endfunction
 
