@@ -1,7 +1,7 @@
 " BufferPersist.vim: Save certain buffers somewhere when quitting them.
 "
 " DEPENDENCIES:
-"   - escapings.vim autoload script
+"   - ingo/compat.vim autoload script
 "   - ingo/range.vim autoload script
 "
 " Copyright: (C) 2012-2013 Ingo Karkat
@@ -10,6 +10,7 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.01.009	08-Aug-2013	Move escapings.vim into ingo-library.
 "   1.01.008	23-Jul-2013	Move ingointegration#GetRange() to
 "				ingo#range#Get().
 "   1.01.007	14-Jun-2013	Minor: Make substitute() robust against
@@ -78,7 +79,7 @@ function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFile
 		endif
 	    endif
 	else
-	    execute 'silent keepalt' l:range . 'write!' escapings#fnameescape(a:pendingBufferFilespec)
+	    execute 'silent keepalt' l:range . 'write!' ingo#compat#fnameescape(a:pendingBufferFilespec)
 	endif
     catch /^Vim\%((\a\+)\)\=:E/
 	call s:ErrorMsg('BufferPersist: Failed to record buffer: ' . substitute(v:exception, '^\CVim\%((\a\+)\)\=:', '', ''))
