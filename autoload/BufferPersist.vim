@@ -4,7 +4,7 @@
 "   - ingo/compat.vim autoload script
 "   - ingo/range.vim autoload script
 "
-" Copyright: (C) 2012-2013 Ingo Karkat
+" Copyright: (C) 2012-2014 Ingo Karkat
 "   The VIM LICENSE applies to this script; see ':help copyright'.
 "
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
@@ -51,7 +51,7 @@ function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFile
     let l:range = a:range
     try
 	let l:isBufferEmpty = s:IsBufferEmpty(l:range)
-    catch /^Vim\%((\a\+)\)\=:E/
+    catch /^Vim\%((\a\+)\)\=:/
 	if a:whenRangeNoMatch ==# 'error'
 	    call s:ErrorMsg('BufferPersist: Failed to capture buffer: ' . substitute(v:exception, '\C^Vim\%((\a\+)\)\=:', '', ''))
 	    return
@@ -81,7 +81,7 @@ function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFile
 	else
 	    execute 'silent keepalt' l:range . 'write!' ingo#compat#fnameescape(a:pendingBufferFilespec)
 	endif
-    catch /^Vim\%((\a\+)\)\=:E/
+    catch /^Vim\%((\a\+)\)\=:/
 	call s:ErrorMsg('BufferPersist: Failed to record buffer: ' . substitute(v:exception, '^\CVim\%((\a\+)\)\=:', '', ''))
     endtry
 endfunction
