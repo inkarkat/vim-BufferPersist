@@ -2,6 +2,7 @@
 "
 " DEPENDENCIES:
 "   - ingo/compat.vim autoload script
+"   - ingo/msg.vim autoload script
 "   - ingo/range.vim autoload script
 "
 " Copyright: (C) 2012-2014 Ingo Karkat
@@ -10,6 +11,7 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.01.010	05-May-2014	Use ingo#msg#ErrorMsg().
 "   1.01.009	08-Aug-2013	Move escapings.vim into ingo-library.
 "   1.01.008	23-Jul-2013	Move ingointegration#GetRange() to
 "				ingo#range#Get().
@@ -32,13 +34,6 @@
 "				the original MessageRecall plugin.
 "	001	09-Jun-2012	file creation
 
-function! s:ErrorMsg( text )
-    echohl ErrorMsg
-    let v:errmsg = a:text
-    echomsg v:errmsg
-    echohl None
-endfunction
-
 function! s:IsBufferEmpty( range )
     if empty(a:range) || a:range ==# '%'
 	return (line('$') == 1 && empty(getline(1)))
@@ -53,7 +48,7 @@ function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFile
 	let l:isBufferEmpty = s:IsBufferEmpty(l:range)
     catch /^Vim\%((\a\+)\)\=:/
 	if a:whenRangeNoMatch ==# 'error'
-	    call s:ErrorMsg('BufferPersist: Failed to capture buffer: ' . substitute(v:exception, '\C^Vim\%((\a\+)\)\=:', '', ''))
+	    call ingo#msg#ErrorMsg('BufferPersist: Failed to capture buffer: ' . substitute(v:exception, '\C^Vim\%((\a\+)\)\=:', '', ''))
 	    return
 	elseif a:whenRangeNoMatch ==# 'ignore'
 	    " This will remove any existing a:pendingBufferFilespec below and
@@ -75,14 +70,14 @@ function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFile
 	    " clutter the store and provides no value on recalls.
 	    if filereadable(a:pendingBufferFilespec)
 		if delete(a:pendingBufferFilespec) != 0
-		    call s:ErrorMsg('BufferPersist: Failed to delete temporary recorded buffer')
+		    call ingo#msg#ErrorMsg('BufferPersist: Failed to delete temporary recorded buffer')
 		endif
 	    endif
 	else
 	    execute 'silent keepalt' l:range . 'write!' ingo#compat#fnameescape(a:pendingBufferFilespec)
 	endif
     catch /^Vim\%((\a\+)\)\=:/
-	call s:ErrorMsg('BufferPersist: Failed to record buffer: ' . substitute(v:exception, '^\CVim\%((\a\+)\)\=:', '', ''))
+	call ingo#msg#ErrorMsg('BufferPersist: Failed to record buffer: ' . substitute(v:exception, '^\CVim\%((\a\+)\)\=:', '', ''))
     endtry
 endfunction
 
@@ -107,7 +102,7 @@ function! BufferPersist#PersistBuffer( pendingBufferFilespec, BufferStoreFuncref
     if rename(a:pendingBufferFilespec, l:bufferFilespec) == 0
 	unlet! s:pendingBufferFilespecs[a:pendingBufferFilespec]
     else
-	call s:ErrorMsg('BufferPersist: Failed to persist buffer to ' . l:bufferFilespec)
+	call ingo#msg#ErrorMsg('BufferPersist: Failed to persist buffer to ' . l:bufferFilespec)
     endif
 endfunction
 
