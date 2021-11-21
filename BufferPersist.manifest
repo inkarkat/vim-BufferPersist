@@ -1,0 +1,2 @@
+autoload/BufferPersist.vim
+doc/BufferPersist.txt
