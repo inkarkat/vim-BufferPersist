@@ -11,11 +11,10 @@ let s:save_cpo = &cpo
 set cpo&vim
 
 function! s:IsBufferEmpty( range )
-    if empty(a:range) || a:range ==# '%'
-	return (line('$') == 1 && empty(getline(1)))
-    else
-	return (ingo#range#Get(a:range) =~# '^\n*$')
-    endif
+    return (empty(a:range) || a:range ==# '%' ?
+    \   ingo#buffer#IsEmpty() :
+    \   (ingo#range#Get(a:range) =~# '^\n*$')
+    \)
 endfunction
 
 function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFilespec )
