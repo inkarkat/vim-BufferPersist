@@ -1,38 +1,14 @@
 " BufferPersist.vim: Save certain buffers somewhere when quitting them.
 "
 " DEPENDENCIES:
-"   - ingo/compat.vim autoload script
-"   - ingo/msg.vim autoload script
-"   - ingo/range.vim autoload script
+"   - ingo-library.vim plugin
 "
-" Copyright: (C) 2012-2014 Ingo Karkat
+" Copyright: (C) 2012-2022 Ingo Karkat
 "   The VIM LICENSE applies to this script; see ':help copyright'.
 "
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
-"
-" REVISION	DATE		REMARKS
-"   1.01.010	05-May-2014	Use ingo#msg#ErrorMsg().
-"   1.01.009	08-Aug-2013	Move escapings.vim into ingo-library.
-"   1.01.008	23-Jul-2013	Move ingointegration#GetRange() to
-"				ingo#range#Get().
-"   1.01.007	14-Jun-2013	Minor: Make substitute() robust against
-"				'ignorecase'.
-"   1.00.006	20-Jun-2012	BUG: s:IsBufferEmpty() can throw E486, move the
-"				code into the try block so that only the error
-"				is printed.
-"				Add a:options.whenRangeNoMatch to customize the
-"				behavior.
-"   1.00.005	18-Jun-2012	Pass bufNr to a:BufferStoreFuncref; on
-"				VimLeavePre, the current buffer number does not
-"				correspond to the persisted buffer, and the
-"				Funcref may want to evaluate the buffer name.
-"	004	14-Jun-2012	Do not persist empty buffer contents.
-"	003	13-Jun-2012	Replace a:range argument with a more flexible
-"				options dictionary, as this and other potential
-"				new options are not mandatory.
-"	002	12-Jun-2012	Split off BufferPersist functionality from
-"				the original MessageRecall plugin.
-"	001	09-Jun-2012	file creation
+let s:save_cpo = &cpo
+set cpo&vim
 
 function! s:IsBufferEmpty( range )
     if empty(a:range) || a:range ==# '%'
@@ -165,4 +141,6 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
     augroup END
 endfunction
 
+let &cpo = s:save_cpo
+unlet s:save_cpo
 " vim: set ts=8 sts=4 sw=4 noexpandtab ff=unix fdm=syntax :
