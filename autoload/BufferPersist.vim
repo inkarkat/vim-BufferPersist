@@ -23,8 +23,8 @@ function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFile
 	let l:isBufferEmpty = s:IsBufferEmpty(l:range)
     catch /^Vim\%((\a\+)\)\=:/
 	if a:whenRangeNoMatch ==# 'error'
-	    call ingo#msg#ErrorMsg('BufferPersist: Failed to capture buffer: ' . substitute(v:exception, '\C^Vim\%((\a\+)\)\=:', '', ''))
-	    return
+	    call ingo#err#Set('BufferPersist: Failed to capture buffer: ' . substitute(v:exception, '\C^Vim\%((\a\+)\)\=:', '', ''))
+	    return 0
 	elseif a:whenRangeNoMatch ==# 'ignore'
 	    " This will remove any existing a:pendingBufferFilespec below and
 	    " not persist the current buffer.
@@ -45,14 +45,17 @@ function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFile
 	    " clutter the store and provides no value on recalls.
 	    if filereadable(a:pendingBufferFilespec)
 		if delete(a:pendingBufferFilespec) != 0
-		    call ingo#msg#ErrorMsg('BufferPersist: Failed to delete temporary recorded buffer')
+		    call ingo#err#Set('BufferPersist: Failed to delete temporary recorded buffer')
+		    return 0
 		endif
 	    endif
 	else
 	    execute 'silent keepalt' l:range . 'write!' ingo#compat#fnameescape(a:pendingBufferFilespec)
 	endif
+	return 1
     catch /^Vim\%((\a\+)\)\=:/
-	call ingo#msg#ErrorMsg('BufferPersist: Failed to record buffer: ' . substitute(v:exception, '^\CVim\%((\a\+)\)\=:', '', ''))
+	call ingo#err#Set('BufferPersist: Failed to record buffer: ' . substitute(v:exception, '^\CVim\%((\a\+)\)\=:', '', ''))
+	return 0
     endtry
 endfunction
 
@@ -63,7 +66,9 @@ function! BufferPersist#OnUnload( range, whenRangeNoMatch, pendingBufferFilespec
     " in this special case, we only need to persist when inside the
     " to-be-unloaded buffer.
     if expand('<abuf>') == bufnr('')
-	call BufferPersist#RecordBuffer(a:range, a:whenRangeNoMatch, a:pendingBufferFilespec)
+	if ! BufferPersist#RecordBuffer(a:range, a:whenRangeNoMatch, a:pendingBufferFilespec)
+	    call ingo#msg#ErrorMsg(ingo#err#Get())
+	endif
     endif
 endfunction
 
@@ -131,7 +136,7 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
 
     augroup BufferPersist
 	autocmd! * <buffer>
-	execute printf('autocmd BufLeave  <buffer> call BufferPersist#RecordBuffer(%s, %s, %s)', string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec))
+	execute printf('autocmd BufLeave  <buffer> if ! BufferPersist#RecordBuffer(%s, %s, %s) | call ingo#msg#ErrorMsg(ingo#err#Get()) | endif', string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec))
 	execute printf('autocmd BufUnload <buffer> call BufferPersist#OnUnload(%s, %s, %s)', string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec))
 	execute printf('autocmd BufDelete <buffer> if ! BufferPersist#PersistBuffer(%s, %s, %d) | call ingo#msg#ErrorMsg(ingo#err#Get()) | endif', string(l:pendingBufferFilespec), string(a:BufferStoreFuncref), bufnr(''))
 
