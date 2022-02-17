@@ -69,7 +69,7 @@ endfunction
 
 function! BufferPersist#PersistBuffer( pendingBufferFilespec, BufferStoreFuncref, bufNr )
     if ! filereadable(a:pendingBufferFilespec)
-	return
+	return 1
     endif
 
     let l:bufferFilespec = call(a:BufferStoreFuncref, [a:bufNr])
@@ -77,13 +77,17 @@ function! BufferPersist#PersistBuffer( pendingBufferFilespec, BufferStoreFuncref
     if rename(a:pendingBufferFilespec, l:bufferFilespec) == 0
 	unlet! s:pendingBufferFilespecs[a:pendingBufferFilespec]
     else
-	call ingo#msg#ErrorMsg('BufferPersist: Failed to persist buffer to ' . l:bufferFilespec)
+	call ingo#err#Set('BufferPersist: Failed to persist buffer to ' . l:bufferFilespec)
+	return 0
     endif
+    return 1
 endfunction
 
 function! BufferPersist#OnLeave( BufferStoreFuncref )
     for [l:filespec, l:bufNr] in items(s:pendingBufferFilespecs)
-	call BufferPersist#PersistBuffer(l:filespec, a:BufferStoreFuncref, l:bufNr)
+	if ! BufferPersist#PersistBuffer(l:filespec, a:BufferStoreFuncref, l:bufNr)
+	    call ingo#msg#ErrorMsg(ingo#err#Get())
+	endif
     endfor
 endfunction
 
@@ -129,7 +133,7 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
 	autocmd! * <buffer>
 	execute printf('autocmd BufLeave  <buffer> call BufferPersist#RecordBuffer(%s, %s, %s)', string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec))
 	execute printf('autocmd BufUnload <buffer> call BufferPersist#OnUnload(%s, %s, %s)', string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec))
-	execute printf('autocmd BufDelete <buffer> call BufferPersist#PersistBuffer(%s, %s, %d)', string(l:pendingBufferFilespec), string(a:BufferStoreFuncref), bufnr(''))
+	execute printf('autocmd BufDelete <buffer> if ! BufferPersist#PersistBuffer(%s, %s, %d) | call ingo#msg#ErrorMsg(ingo#err#Get()) | endif', string(l:pendingBufferFilespec), string(a:BufferStoreFuncref), bufnr(''))
 
 	" This should be added only once per a:BufferStoreFuncref(). However,
 	" since subsequent invocations will no-op on an empty
