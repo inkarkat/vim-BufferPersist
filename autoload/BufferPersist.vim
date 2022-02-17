@@ -23,7 +23,7 @@ function! s:CheckBuffer( range, whenRangeNoMatch ) abort
 	let l:isBufferEmpty = s:IsBufferEmpty(l:range)
     catch /^Vim\%((\a\+)\)\=:/
 	if a:whenRangeNoMatch ==# 'error'
-	    throw 'BufferPersist: Failed to capture buffer: ' . substitute(v:exception, '\C^Vim\%((\a\+)\)\=:', '', '')
+	    throw 'BufferPersist: Failed to capture buffer: ' . ingo#msg#MsgFromVimException()
 	elseif a:whenRangeNoMatch ==# 'ignore'
 	    " This will remove any existing a:pendingBufferFilespec below and
 	    " not persist the current buffer.
@@ -58,7 +58,7 @@ function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFile
 	endif
 	return 1
     catch /^Vim\%((\a\+)\)\=:/
-	call ingo#err#Set('BufferPersist: Failed to record buffer: ' . substitute(v:exception, '^\CVim\%((\a\+)\)\=:', '', ''))
+	call ingo#err#Set('BufferPersist: Failed to record buffer: ' . ingo#msg#MsgFromVimException())
 	return 0
     catch /^BufferPersist:/
 	call ingo#err#Set(v:exception)
