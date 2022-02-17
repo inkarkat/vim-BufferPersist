@@ -40,11 +40,40 @@ function! s:CheckBuffer( range, whenRangeNoMatch ) abort
     return [l:range, l:isBufferEmpty]
 endfunction
 
+function! BufferPersist#WriteBuffer( BufferStoreFuncref, range, passedRange, whenRangeNoMatch ) abort
+    try
+	" The a:passedRange from the custom command overrides the default range.
+	let [l:range, l:isBufferEmpty] = s:CheckBuffer((empty(a:passedRange) ? a:range : a:passedRange), a:whenRangeNoMatch)
+
+	if l:isBufferEmpty
+	    call ingo#err#Set('BufferPersist: No contents to write')
+	    return 0
+	endif
+
+	let l:bufferFilespec = call(a:BufferStoreFuncref, [bufnr('')])
+	execute 'silent keepalt' l:range . 'write!' ingo#compat#fnameescape(l:bufferFilespec)
+
+	if empty(a:passedRange)
+	    " Do not persist the buffer contents again after editing is done
+	    " unless there have been further changes.
+	    let b:BufferPersist_WriteTick = b:changedtick
+	endif
+
+	return 1
+    catch /^Vim\%((\a\+)\)\=:/
+	call ingo#err#Set(printf('BufferPersist: Failed to write buffer to %s: %s', l:bufferFilespec, ingo#msg#MsgFromVimException()))
+	return 0
+    catch /^BufferPersist:/
+	call ingo#err#Set(v:exception)
+	return 0
+    endtry
+endfunction
+
 function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFilespec )
     try
 	let [l:range, l:isBufferEmpty] = s:CheckBuffer(a:range, a:whenRangeNoMatch)
 
-	if l:isBufferEmpty
+	if l:isBufferEmpty || (exists('b:BufferPersist_WriteTick') && b:BufferPersist_WriteTick == b:changedtick)
 	    " Do not record effectively empty buffer contents; this would just
 	    " clutter the store and provides no value on recalls.
 	    if filereadable(a:pendingBufferFilespec)
@@ -131,12 +160,20 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
 "				persisted
 "				"all": the entire buffer is persisted instead
 "				Default is "error"
+"   a:options.writeCommandName  The plugin defines a buffer-local command with
+"                               that name that persists the current buffer
+"                               contents (or just the passed :[range]). If the
+"                               buffer is changed after that, it will again be
+"                               persisted when editing is done. This enables the
+"                               user to store intermediate snapshots of the
+"                               buffer.
 "* RETURN VALUES:
 "   None.
 "******************************************************************************
     let l:options = (a:0 ? a:1 : {})
     let l:range = get(l:options, 'range', '')
     let l:whenRangeNoMatch = get(l:options, 'whenRangeNoMatch', 'error')
+    let l:writeCommandName = get(l:options, 'writeCommandName', '')
 
     let l:pendingBufferFilespec = tempname()
     let s:pendingBufferFilespecs[l:pendingBufferFilespec] = bufnr('')
@@ -154,6 +191,10 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
 	" in a single Vim session, anyway.
 	execute printf('autocmd VimLeavePre * call BufferPersist#OnLeave(%s)', string(a:BufferStoreFuncref))
     augroup END
+
+    if ! empty(l:writeCommandName)
+	execute printf('command! -buffer -bar -range=-1 %s if ! BufferPersist#WriteBuffer(%s, %s, (<count> == -1 ? "" : <line1> . "," . <line2>), %s) | echoerr ingo#err#Get() | endif', l:writeCommandName, string(a:BufferStoreFuncref), string(l:range), string(l:whenRangeNoMatch))
+    endif
 endfunction
 
 let &cpo = s:save_cpo
