@@ -180,9 +180,15 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
 
     augroup BufferPersist
 	autocmd! * <buffer>
-	execute printf('autocmd BufLeave  <buffer> if ! BufferPersist#RecordBuffer(%s, %s, %s) | call ingo#msg#ErrorMsg(ingo#err#Get()) | endif', string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec))
-	execute printf('autocmd BufUnload <buffer> call BufferPersist#OnUnload(%s, %s, %s)', string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec))
-	execute printf('autocmd BufDelete <buffer> if ! BufferPersist#PersistBuffer(%s, %s, %d) | call ingo#msg#ErrorMsg(ingo#err#Get()) | endif', string(l:pendingBufferFilespec), string(a:BufferStoreFuncref), bufnr(''))
+	execute printf('autocmd BufLeave  <buffer> if ! BufferPersist#RecordBuffer(%s, %s, %s) | call ingo#msg#ErrorMsg(ingo#err#Get()) | endif',
+	\   string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec)
+	\)
+	execute printf('autocmd BufUnload <buffer> call BufferPersist#OnUnload(%s, %s, %s)',
+	\   string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec)
+	\)
+	execute printf('autocmd BufDelete <buffer> if ! BufferPersist#PersistBuffer(%s, %s, %d) | call ingo#msg#ErrorMsg(ingo#err#Get()) | endif',
+	\   string(l:pendingBufferFilespec), string(a:BufferStoreFuncref), bufnr('')
+	\)
 
 	" This should be added only once per a:BufferStoreFuncref(). However,
 	" since subsequent invocations will no-op on an empty
@@ -193,7 +199,9 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
     augroup END
 
     if ! empty(l:writeCommandName)
-	execute printf('command! -buffer -bar -range=-1 %s if ! BufferPersist#WriteBuffer(%s, %s, (<count> == -1 ? "" : <line1> . "," . <line2>), %s) | echoerr ingo#err#Get() | endif', l:writeCommandName, string(a:BufferStoreFuncref), string(l:range), string(l:whenRangeNoMatch))
+	execute printf('command! -buffer -bar -range=-1 %s if ! BufferPersist#WriteBuffer(%s, %s, (<count> == -1 ? "" : <line1> . "," . <line2>), %s) | echoerr ingo#err#Get() | endif',
+	\   l:writeCommandName, string(a:BufferStoreFuncref), string(l:range), string(l:whenRangeNoMatch)
+	\)
     endif
 endfunction
 
