@@ -17,14 +17,13 @@ function! s:IsBufferEmpty( range )
     \)
 endfunction
 
-function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFilespec )
+function! s:CheckBuffer( range, whenRangeNoMatch ) abort
     let l:range = a:range
     try
 	let l:isBufferEmpty = s:IsBufferEmpty(l:range)
     catch /^Vim\%((\a\+)\)\=:/
 	if a:whenRangeNoMatch ==# 'error'
-	    call ingo#err#Set('BufferPersist: Failed to capture buffer: ' . substitute(v:exception, '\C^Vim\%((\a\+)\)\=:', '', ''))
-	    return 0
+	    throw 'BufferPersist: Failed to capture buffer: ' . substitute(v:exception, '\C^Vim\%((\a\+)\)\=:', '', '')
 	elseif a:whenRangeNoMatch ==# 'ignore'
 	    " This will remove any existing a:pendingBufferFilespec below and
 	    " not persist the current buffer.
@@ -38,8 +37,13 @@ function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFile
 	    throw 'ASSERT: Invalid value for a:whenRangeNoMatch: ' . string(a:whenRangeNoMatch)
 	endif
     endtry
+    return [l:range, l:isBufferEmpty]
+endfunction
 
+function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFilespec )
     try
+	let [l:range, l:isBufferEmpty] = s:CheckBuffer(a:range, a:whenRangeNoMatch)
+
 	if l:isBufferEmpty
 	    " Do not record effectively empty buffer contents; this would just
 	    " clutter the store and provides no value on recalls.
@@ -55,6 +59,9 @@ function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFile
 	return 1
     catch /^Vim\%((\a\+)\)\=:/
 	call ingo#err#Set('BufferPersist: Failed to record buffer: ' . substitute(v:exception, '^\CVim\%((\a\+)\)\=:', '', ''))
+	return 0
+    catch /^BufferPersist:/
+	call ingo#err#Set(v:exception)
 	return 0
     endtry
 endfunction
