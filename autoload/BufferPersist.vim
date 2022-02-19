@@ -147,7 +147,6 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
 "   a:BufferStoreFuncref    A Funcref that takes the buffer number as an
 "			    argument and returns the filespec where the buffer
 "			    contents should be persisted to.
-"   a:options               Optional Dictionary with configuration:
 "   a:options.range         A |:range| expression limiting the lines of the
 "			    buffer that should be persisted. This can be used to
 "			    filter away some content. Default is "", which
