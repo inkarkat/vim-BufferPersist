@@ -62,7 +62,7 @@ To uninstall, use the :RmVimball command.
 ### DEPENDENCIES
 
 - Requires Vim 7.0 or higher.
-- Requires the ingo-library.vim plugin ([vimscript #4433](http://www.vim.org/scripts/script.php?script_id=4433)), version 1.012 or
+- Requires the ingo-library.vim plugin ([vimscript #4433](http://www.vim.org/scripts/script.php?script_id=4433)), version 1.044 or
   higher.
 
 TODO
@@ -83,10 +83,12 @@ HISTORY
 - ENH: Offer definition of a buffer-local command to persist the current
   buffer state on demand, via a:options.writeCommandName.
 - Minor: Make substitute() robust against 'ignorecase'.
+- Don't clobber the search history with the a:options.range (if given and
+  using a /{pattern}/ address).
 - Add dependency to ingo-library ([vimscript #4433](http://www.vim.org/scripts/script.php?script_id=4433)).
 
 __You need to separately
-  install ingo-library ([vimscript #4433](http://www.vim.org/scripts/script.php?script_id=4433)) version 1.012 (or higher)!__
+  install ingo-library ([vimscript #4433](http://www.vim.org/scripts/script.php?script_id=4433)) version 1.044 (or higher)!__
 
 ##### 1.00    25-Jun-2012
 - First published version.

@@ -51,7 +51,7 @@ function! BufferPersist#WriteBuffer( BufferStoreFuncref, range, passedRange, whe
 	endif
 
 	let l:bufferFilespec = call(a:BufferStoreFuncref, [bufnr('')])
-	execute 'silent keepalt' l:range . 'write!' ingo#compat#fnameescape(l:bufferFilespec)
+	execute 'silent keepalt' ingo#compat#commands#keeppatterns() l:range . 'write!' ingo#compat#fnameescape(l:bufferFilespec)
 
 	if empty(a:passedRange)
 	    " Do not persist the buffer contents again after editing is done
@@ -83,7 +83,7 @@ function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFile
 		endif
 	    endif
 	else
-	    execute 'silent keepalt' l:range . 'write!' ingo#compat#fnameescape(a:pendingBufferFilespec)
+	    execute 'silent keepalt' ingo#compat#commands#keeppatterns() l:range . 'write!' ingo#compat#fnameescape(a:pendingBufferFilespec)
 	endif
 	return 1
     catch /^Vim\%((\a\+)\)\=:/
