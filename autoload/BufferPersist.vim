@@ -1,55 +1,29 @@
 " BufferPersist.vim: Save certain buffers somewhere when quitting them.
 "
 " DEPENDENCIES:
-"   - ingo/compat.vim autoload script
-"   - ingo/msg.vim autoload script
-"   - ingo/range.vim autoload script
+"   - ingo-library.vim plugin
 "
-" Copyright: (C) 2012-2014 Ingo Karkat
+" Copyright: (C) 2012-2022 Ingo Karkat
 "   The VIM LICENSE applies to this script; see ':help copyright'.
 "
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
-"
-" REVISION	DATE		REMARKS
-"   1.01.010	05-May-2014	Use ingo#msg#ErrorMsg().
-"   1.01.009	08-Aug-2013	Move escapings.vim into ingo-library.
-"   1.01.008	23-Jul-2013	Move ingointegration#GetRange() to
-"				ingo#range#Get().
-"   1.01.007	14-Jun-2013	Minor: Make substitute() robust against
-"				'ignorecase'.
-"   1.00.006	20-Jun-2012	BUG: s:IsBufferEmpty() can throw E486, move the
-"				code into the try block so that only the error
-"				is printed.
-"				Add a:options.whenRangeNoMatch to customize the
-"				behavior.
-"   1.00.005	18-Jun-2012	Pass bufNr to a:BufferStoreFuncref; on
-"				VimLeavePre, the current buffer number does not
-"				correspond to the persisted buffer, and the
-"				Funcref may want to evaluate the buffer name.
-"	004	14-Jun-2012	Do not persist empty buffer contents.
-"	003	13-Jun-2012	Replace a:range argument with a more flexible
-"				options dictionary, as this and other potential
-"				new options are not mandatory.
-"	002	12-Jun-2012	Split off BufferPersist functionality from
-"				the original MessageRecall plugin.
-"	001	09-Jun-2012	file creation
+let s:save_cpo = &cpo
+set cpo&vim
 
 function! s:IsBufferEmpty( range )
-    if empty(a:range) || a:range ==# '%'
-	return (line('$') == 1 && empty(getline(1)))
-    else
-	return (ingo#range#Get(a:range) =~# '^\n*$')
-    endif
+    return (empty(a:range) || a:range ==# '%' ?
+    \   ingo#buffer#IsEmpty() :
+    \   (ingo#range#Get(a:range) =~# '^\n*$')
+    \)
 endfunction
 
-function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFilespec )
+function! s:CheckBuffer( range, whenRangeNoMatch ) abort
     let l:range = a:range
     try
 	let l:isBufferEmpty = s:IsBufferEmpty(l:range)
     catch /^Vim\%((\a\+)\)\=:/
 	if a:whenRangeNoMatch ==# 'error'
-	    call ingo#msg#ErrorMsg('BufferPersist: Failed to capture buffer: ' . substitute(v:exception, '\C^Vim\%((\a\+)\)\=:', '', ''))
-	    return
+	    throw 'BufferPersist: Failed to capture buffer: ' . ingo#msg#MsgFromVimException()
 	elseif a:whenRangeNoMatch ==# 'ignore'
 	    " This will remove any existing a:pendingBufferFilespec below and
 	    " not persist the current buffer.
@@ -63,21 +37,61 @@ function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFile
 	    throw 'ASSERT: Invalid value for a:whenRangeNoMatch: ' . string(a:whenRangeNoMatch)
 	endif
     endtry
+    return [l:range, l:isBufferEmpty]
+endfunction
 
+function! BufferPersist#WriteBuffer( BufferStoreFuncref, range, passedRange, whenRangeNoMatch ) abort
     try
+	" The a:passedRange from the custom command overrides the default range.
+	let [l:range, l:isBufferEmpty] = s:CheckBuffer((empty(a:passedRange) ? a:range : a:passedRange), a:whenRangeNoMatch)
+
 	if l:isBufferEmpty
+	    call ingo#err#Set('BufferPersist: No contents to write')
+	    return 0
+	endif
+
+	let l:bufferFilespec = call(a:BufferStoreFuncref, [bufnr('')])
+	execute 'silent keepalt' ingo#compat#commands#keeppatterns() l:range . 'write!' ingo#compat#fnameescape(l:bufferFilespec)
+
+	if empty(a:passedRange)
+	    " Do not persist the buffer contents again after editing is done
+	    " unless there have been further changes.
+	    let b:BufferPersist_WriteTick = b:changedtick
+	endif
+
+	return 1
+    catch /^Vim\%((\a\+)\)\=:/
+	call ingo#err#Set(printf('BufferPersist: Failed to write buffer to %s: %s', l:bufferFilespec, ingo#msg#MsgFromVimException()))
+	return 0
+    catch /^BufferPersist:/
+	call ingo#err#Set(v:exception)
+	return 0
+    endtry
+endfunction
+
+function! BufferPersist#RecordBuffer( range, whenRangeNoMatch, pendingBufferFilespec )
+    try
+	let [l:range, l:isBufferEmpty] = s:CheckBuffer(a:range, a:whenRangeNoMatch)
+
+	if l:isBufferEmpty || (exists('b:BufferPersist_WriteTick') && b:BufferPersist_WriteTick == b:changedtick)
 	    " Do not record effectively empty buffer contents; this would just
 	    " clutter the store and provides no value on recalls.
 	    if filereadable(a:pendingBufferFilespec)
 		if delete(a:pendingBufferFilespec) != 0
-		    call ingo#msg#ErrorMsg('BufferPersist: Failed to delete temporary recorded buffer')
+		    call ingo#err#Set('BufferPersist: Failed to delete temporary recorded buffer')
+		    return 0
 		endif
 	    endif
 	else
-	    execute 'silent keepalt' l:range . 'write!' ingo#compat#fnameescape(a:pendingBufferFilespec)
+	    execute 'silent keepalt' ingo#compat#commands#keeppatterns() l:range . 'write!' ingo#compat#fnameescape(a:pendingBufferFilespec)
 	endif
+	return 1
     catch /^Vim\%((\a\+)\)\=:/
-	call ingo#msg#ErrorMsg('BufferPersist: Failed to record buffer: ' . substitute(v:exception, '^\CVim\%((\a\+)\)\=:', '', ''))
+	call ingo#err#Set('BufferPersist: Failed to record buffer: ' . ingo#msg#MsgFromVimException())
+	return 0
+    catch /^BufferPersist:/
+	call ingo#err#Set(v:exception)
+	return 0
     endtry
 endfunction
 
@@ -88,13 +102,15 @@ function! BufferPersist#OnUnload( range, whenRangeNoMatch, pendingBufferFilespec
     " in this special case, we only need to persist when inside the
     " to-be-unloaded buffer.
     if expand('<abuf>') == bufnr('')
-	call BufferPersist#RecordBuffer(a:range, a:whenRangeNoMatch, a:pendingBufferFilespec)
+	if ! BufferPersist#RecordBuffer(a:range, a:whenRangeNoMatch, a:pendingBufferFilespec)
+	    call ingo#msg#ErrorMsg(ingo#err#Get())
+	endif
     endif
 endfunction
 
 function! BufferPersist#PersistBuffer( pendingBufferFilespec, BufferStoreFuncref, bufNr )
     if ! filereadable(a:pendingBufferFilespec)
-	return
+	return 1
     endif
 
     let l:bufferFilespec = call(a:BufferStoreFuncref, [a:bufNr])
@@ -102,13 +118,17 @@ function! BufferPersist#PersistBuffer( pendingBufferFilespec, BufferStoreFuncref
     if rename(a:pendingBufferFilespec, l:bufferFilespec) == 0
 	unlet! s:pendingBufferFilespecs[a:pendingBufferFilespec]
     else
-	call ingo#msg#ErrorMsg('BufferPersist: Failed to persist buffer to ' . l:bufferFilespec)
+	call ingo#err#Set('BufferPersist: Failed to persist buffer to ' . l:bufferFilespec)
+	return 0
     endif
+    return 1
 endfunction
 
 function! BufferPersist#OnLeave( BufferStoreFuncref )
     for [l:filespec, l:bufNr] in items(s:pendingBufferFilespecs)
-	call BufferPersist#PersistBuffer(l:filespec, a:BufferStoreFuncref, l:bufNr)
+	if ! BufferPersist#PersistBuffer(l:filespec, a:BufferStoreFuncref, l:bufNr)
+	    call ingo#msg#ErrorMsg(ingo#err#Get())
+	endif
     endfor
 endfunction
 
@@ -127,7 +147,6 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
 "   a:BufferStoreFuncref    A Funcref that takes the buffer number as an
 "			    argument and returns the filespec where the buffer
 "			    contents should be persisted to.
-"   a:options               Optional Dictionary with configuration:
 "   a:options.range         A |:range| expression limiting the lines of the
 "			    buffer that should be persisted. This can be used to
 "			    filter away some content. Default is "", which
@@ -140,21 +159,35 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
 "				persisted
 "				"all": the entire buffer is persisted instead
 "				Default is "error"
+"   a:options.writeCommandName  The plugin defines a buffer-local command with
+"                               that name that persists the current buffer
+"                               contents (or just the passed :[range]). If the
+"                               buffer is changed after that, it will again be
+"                               persisted when editing is done. This enables the
+"                               user to store intermediate snapshots of the
+"                               buffer.
 "* RETURN VALUES:
 "   None.
 "******************************************************************************
     let l:options = (a:0 ? a:1 : {})
     let l:range = get(l:options, 'range', '')
     let l:whenRangeNoMatch = get(l:options, 'whenRangeNoMatch', 'error')
+    let l:writeCommandName = get(l:options, 'writeCommandName', '')
 
     let l:pendingBufferFilespec = tempname()
     let s:pendingBufferFilespecs[l:pendingBufferFilespec] = bufnr('')
 
     augroup BufferPersist
 	autocmd! * <buffer>
-	execute printf('autocmd BufLeave  <buffer> call BufferPersist#RecordBuffer(%s, %s, %s)', string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec))
-	execute printf('autocmd BufUnload <buffer> call BufferPersist#OnUnload(%s, %s, %s)', string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec))
-	execute printf('autocmd BufDelete <buffer> call BufferPersist#PersistBuffer(%s, %s, %d)', string(l:pendingBufferFilespec), string(a:BufferStoreFuncref), bufnr(''))
+	execute printf('autocmd BufLeave  <buffer> if ! BufferPersist#RecordBuffer(%s, %s, %s) | call ingo#msg#ErrorMsg(ingo#err#Get()) | endif',
+	\   string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec)
+	\)
+	execute printf('autocmd BufUnload <buffer> call BufferPersist#OnUnload(%s, %s, %s)',
+	\   string(l:range), string(l:whenRangeNoMatch), string(l:pendingBufferFilespec)
+	\)
+	execute printf('autocmd BufDelete <buffer> if ! BufferPersist#PersistBuffer(%s, %s, %d) | call ingo#msg#ErrorMsg(ingo#err#Get()) | endif',
+	\   string(l:pendingBufferFilespec), string(a:BufferStoreFuncref), bufnr('')
+	\)
 
 	" This should be added only once per a:BufferStoreFuncref(). However,
 	" since subsequent invocations will no-op on an empty
@@ -163,6 +196,14 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
 	" in a single Vim session, anyway.
 	execute printf('autocmd VimLeavePre * call BufferPersist#OnLeave(%s)', string(a:BufferStoreFuncref))
     augroup END
+
+    if ! empty(l:writeCommandName)
+	execute printf('command! -buffer -bar -range=-1 %s if ! BufferPersist#WriteBuffer(%s, %s, (<count> == -1 ? "" : <line1> . "," . <line2>), %s) | echoerr ingo#err#Get() | endif',
+	\   l:writeCommandName, string(a:BufferStoreFuncref), string(l:range), string(l:whenRangeNoMatch)
+	\)
+    endif
 endfunction
 
+let &cpo = s:save_cpo
+unlet s:save_cpo
 " vim: set ts=8 sts=4 sw=4 noexpandtab ff=unix fdm=syntax :
