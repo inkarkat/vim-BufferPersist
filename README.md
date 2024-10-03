@@ -79,7 +79,7 @@ https://github.com/inkarkat/vim-BufferPersist/issues or email (address below).
 HISTORY
 ------------------------------------------------------------------------------
 
-##### 1.10    RELEASEME
+##### 1.10    03-Oct-2024
 - ENH: Offer definition of a buffer-local command to persist the current
   buffer state on demand, via a:options.writeCommandName.
 - Minor: Make substitute() robust against 'ignorecase'.
@@ -97,7 +97,7 @@ __You need to separately
 - Started development.
 
 ------------------------------------------------------------------------------
-Copyright: (C) 2012-2022 Ingo Karkat -
+Copyright: (C) 2012-2024 Ingo Karkat -
 The [VIM LICENSE](http://vimdoc.sourceforge.net/htmldoc/uganda.html#license) applies to this plugin.
 
 Maintainer:     Ingo Karkat &lt;ingo@karkat.de&gt;
