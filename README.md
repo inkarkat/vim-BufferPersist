@@ -79,6 +79,11 @@ https://github.com/inkarkat/vim-BufferPersist/issues or email (address below).
 HISTORY
 ------------------------------------------------------------------------------
 
+##### 1.11    07-Feb-2025
+- ENH: Enable support for excluding Git message trailers (and similar):
+  a:options.range can also be a List of range expressions; the first matching
+  range will be used.
+
 ##### 1.10    03-Oct-2024
 - ENH: Offer definition of a buffer-local command to persist the current
   buffer state on demand, via a:options.writeCommandName.
@@ -97,7 +102,7 @@ __You need to separately
 - Started development.
 
 ------------------------------------------------------------------------------
-Copyright: (C) 2012-2024 Ingo Karkat -
+Copyright: (C) 2012-2025 Ingo Karkat -
 The [VIM LICENSE](http://vimdoc.sourceforge.net/htmldoc/uganda.html#license) applies to this plugin.
 
 Maintainer:     Ingo Karkat &lt;ingo@karkat.de&gt;

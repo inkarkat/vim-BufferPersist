@@ -3,7 +3,7 @@
 " DEPENDENCIES:
 "   - ingo-library.vim plugin
 "
-" Copyright: (C) 2012-2022 Ingo Karkat
+" Copyright: (C) 2012-2024 Ingo Karkat
 "   The VIM LICENSE applies to this script; see ':help copyright'.
 "
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
@@ -18,12 +18,21 @@ function! s:IsBufferEmpty( range )
 endfunction
 
 function! s:CheckBuffer( range, whenRangeNoMatch ) abort
-    let l:range = a:range
-    try
-	let l:isBufferEmpty = s:IsBufferEmpty(l:range)
-    catch /^Vim\%((\a\+)\)\=:/
+    let l:hasValidRange = 0
+    let l:errors = []
+    for l:range in ingo#list#Make(a:range)
+	try
+	    let l:isBufferEmpty = s:IsBufferEmpty(l:range)
+	    let l:hasValidRange = 1
+	    break
+	catch /^Vim\%((\a\+)\)\=:/
+	    " Try other range(s).
+	    call add(l:errors, ingo#msg#MsgFromVimException())
+	endtry
+    endfor
+    if ! l:hasValidRange
 	if a:whenRangeNoMatch ==# 'error'
-	    throw 'BufferPersist: Failed to capture buffer: ' . ingo#msg#MsgFromVimException()
+	    throw 'BufferPersist: Failed to capture buffer: ' . join(l:errors, ', ')
 	elseif a:whenRangeNoMatch ==# 'ignore'
 	    " This will remove any existing a:pendingBufferFilespec below and
 	    " not persist the current buffer.
@@ -36,7 +45,7 @@ function! s:CheckBuffer( range, whenRangeNoMatch ) abort
 	else
 	    throw 'ASSERT: Invalid value for a:whenRangeNoMatch: ' . string(a:whenRangeNoMatch)
 	endif
-    endtry
+    endif
     return [l:range, l:isBufferEmpty]
 endfunction
 
@@ -147,10 +156,11 @@ function! BufferPersist#Setup( BufferStoreFuncref, ... )
 "   a:BufferStoreFuncref    A Funcref that takes the buffer number as an
 "			    argument and returns the filespec where the buffer
 "			    contents should be persisted to.
-"   a:options.range         A |:range| expression limiting the lines of the
-"			    buffer that should be persisted. This can be used to
-"			    filter away some content. Default is "", which
-"			    includes the entire buffer.
+"   a:options.range         A single (String) or List of |:range| expression(s)
+"                           limiting the lines of the buffer that should be
+"                           persisted. The first matching range will be used.
+"                           This can be used to filter away some content.
+"                           Default is "", which includes the entire buffer.
 "   a:options.whenRangeNoMatch  Specifies the behavior when a:options.range
 "				doesn't match. One of:
 "				"error": an error message is printed and the
